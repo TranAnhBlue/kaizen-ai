@@ -1,0 +1,16 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE "tenants" ("id" UUID PRIMARY KEY, "name" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TYPE "UserRole" AS ENUM ('TENANT_ADMIN','MANAGER','EMPLOYEE');
+CREATE TYPE "KaizenStatus" AS ENUM ('DRAFT','SUBMITTED','APPROVED','REJECTED','IN_PROGRESS','COMPLETED');
+CREATE TABLE "users" ("id" UUID PRIMARY KEY, "tenantId" UUID NOT NULL REFERENCES "tenants"("id"), "email" TEXT NOT NULL, "passwordHash" TEXT NOT NULL, "fullName" TEXT NOT NULL, "role" "UserRole" NOT NULL DEFAULT 'EMPLOYEE', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX "users_tenantId_email_key" ON "users"("tenantId","email");
+CREATE TABLE "kaizen_projects" ("id" UUID PRIMARY KEY, "tenantId" UUID NOT NULL REFERENCES "tenants"("id"), "title" TEXT NOT NULL, "description" TEXT NOT NULL, "status" "KaizenStatus" NOT NULL DEFAULT 'DRAFT', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE INDEX "kaizen_projects_tenantId_status_idx" ON "kaizen_projects"("tenantId","status");
+CREATE TABLE "kpi_records" ("id" UUID PRIMARY KEY, "tenantId" UUID NOT NULL REFERENCES "tenants"("id"), "metric" TEXT NOT NULL, "value" DECIMAL(18,4) NOT NULL, "unit" TEXT NOT NULL, "recordedAt" TIMESTAMP(3) NOT NULL);
+CREATE INDEX "kpi_records_tenantId_metric_recordedAt_idx" ON "kpi_records"("tenantId","metric","recordedAt");
+CREATE TABLE "documents" ("id" UUID PRIMARY KEY, "tenantId" UUID NOT NULL REFERENCES "tenants"("id"), "title" TEXT NOT NULL, "storageKey" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "documents_tenantId_idx" ON "documents"("tenantId");
+CREATE TABLE "document_chunks" ("id" UUID PRIMARY KEY, "tenantId" UUID NOT NULL, "documentId" UUID NOT NULL REFERENCES "documents"("id") ON DELETE CASCADE, "content" TEXT NOT NULL, "embedding" vector(768));
+CREATE INDEX "document_chunks_tenantId_documentId_idx" ON "document_chunks"("tenantId","documentId");
+CREATE TABLE "ai_jobs" ("id" UUID PRIMARY KEY, "tenantId" UUID NOT NULL, "kind" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'PENDING', "result" JSONB, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "ai_jobs_tenantId_createdAt_idx" ON "ai_jobs"("tenantId","createdAt");

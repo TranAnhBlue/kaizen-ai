@@ -1,0 +1,1 @@
+DevSecOps plan: secret scanning (Gitleaks), dependency/SBOM checks, Trivy image scan, SAST, OWASP ZAP against authorized staging, and manual tenant isolation/AI prompt-injection tests. Independent assessment is separate from CI results.

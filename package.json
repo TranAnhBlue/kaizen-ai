@@ -1,0 +1,12 @@
+{
+  "name": "kaizen-ai",
+  "private": true,
+  "scripts": {
+    "dev:infra": "docker compose -f devops/compose/compose.dev.yml up -d",
+    "dev:web": "npm --prefix frontend run dev",
+    "dev:api": "npm --prefix backend run start:dev",
+    "dev:ai": "cd ai-service && uvicorn app.main:app --reload --port 8000",
+    "db:migrate": "npm --prefix backend run prisma:migrate",
+    "db:generate": "npm --prefix backend run prisma:generate"
+  }
+}

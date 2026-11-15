@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kaizen_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-kaizen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in root .env}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - kaizen_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - kaizen_redis:/data
+volumes:
+  kaizen_pgdata:
+  kaizen_redis:
