@@ -1,0 +1,84 @@
+# Phase 14 local integration stack. Run from repository root with --env-file .env.phase14.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kaizen_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-kaizen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    ports: ['127.0.0.1:5432:5432']
+    volumes: ['postgres_data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server','--appendonly','yes']
+    volumes: ['redis_data:/data']
+    healthcheck:
+      test: ['CMD','redis-cli','ping']
+      interval: 5s
+      retries: 20
+  migrate:
+    build:
+      context: ../..
+      dockerfile: devops/docker/backend.Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kaizen}:${POSTGRES_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-kaizen_ai}
+    command: ['npx','prisma','migrate','deploy']
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: 'no'
+  ai-service:
+    build:
+      context: ../..
+      dockerfile: devops/docker/ai-service.Dockerfile
+    environment:
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?AI_SERVICE_TOKEN required}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+    ports: ['127.0.0.1:8000:8000']
+    healthcheck:
+      test: ['CMD','python','-c','import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health",timeout=3)']
+      interval: 10s
+      retries: 12
+  backend:
+    build:
+      context: ../..
+      dockerfile: devops/docker/backend.Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kaizen}:${POSTGRES_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-kaizen_ai}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?AI_SERVICE_TOKEN required}
+      EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-false}
+      CORS_ORIGIN: http://localhost:3000
+    ports: ['127.0.0.1:3001:3001']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      ai-service: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ['CMD','node','-e','fetch("http://127.0.0.1:3001/api/v1/health").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))']
+      interval: 10s
+      retries: 12
+  frontend:
+    build:
+      context: ../..
+      dockerfile: devops/docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    ports: ['127.0.0.1:3000:3000']
+    depends_on:
+      backend: {condition: service_healthy}
+volumes:
+  postgres_data:
+  redis_data:

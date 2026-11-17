@@ -13,6 +13,7 @@ model Tenant {
  createdAt DateTime @default(now())
  users User[]
  projects KaizenProject[]
+ auditEvents KaizenAuditEvent[]
  kpis KpiRecord[]
  documents Document[]
  @@map("tenants")
@@ -38,6 +39,11 @@ model KaizenProject {
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
  tenant Tenant @relation(fields:[tenantId],references:[id])
+ createdById String? @db.Uuid
+ reviewedById String? @db.Uuid
+ submittedAt DateTime?
+ reviewedAt DateTime?
+ auditEvents KaizenAuditEvent[]
  @@index([tenantId,status])
  @@map("kaizen_projects")
 }
@@ -60,6 +66,9 @@ model Document {
  createdAt DateTime @default(now())
  tenant Tenant @relation(fields:[tenantId],references:[id])
  chunks DocumentChunk[]
+ uploadedById String? @db.Uuid
+ mimeType String? @db.VarChar(100)
+ status String @default("READY")
  @@index([tenantId])
  @@map("documents")
 }
@@ -82,4 +91,134 @@ model AiJob {
  createdAt DateTime @default(now())
  @@index([tenantId,createdAt])
  @@map("ai_jobs")
+}
+
+model KaizenAuditEvent {
+ id String @id @default(uuid()) @db.Uuid
+ tenantId String @db.Uuid
+ projectId String @db.Uuid
+ actorId String @db.Uuid
+ action String
+ fromStatus KaizenStatus?
+ toStatus KaizenStatus
+ comment String? @db.VarChar(2000)
+ createdAt DateTime @default(now())
+ tenant Tenant @relation(fields:[tenantId],references:[id])
+ project KaizenProject @relation(fields:[projectId],references:[id],onDelete:Cascade)
+ @@index([tenantId,projectId,createdAt])
+ @@map("kaizen_audit_events")
+}
+
+
+enum KpiDirection { HIGHER_BETTER LOWER_BETTER }
+model KpiDefinition {
+ id String @id @default(uuid()) @db.Uuid
+ tenantId String @db.Uuid
+ code String @db.VarChar(60)
+ name String @db.VarChar(120)
+ unit String @db.VarChar(30)
+ direction KpiDirection @default(HIGHER_BETTER)
+ target Decimal? @db.Decimal(18,4)
+ warningMin Decimal? @db.Decimal(18,4)
+ warningMax Decimal? @db.Decimal(18,4)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([tenantId,code])
+ @@index([tenantId,name])
+ @@map("kpi_definitions")
+}
+
+model AiConversation {
+ id String @id @default(uuid()) @db.Uuid
+ tenantId String @db.Uuid
+ userId String @db.Uuid
+ title String @db.VarChar(200)
+ createdAt DateTime @default(now())
+ messages AiMessage[]
+ @@index([tenantId,userId,createdAt])
+ @@map("ai_conversations")
+}
+model AiMessage {
+ id String @id @default(uuid()) @db.Uuid
+ conversationId String @db.Uuid
+ tenantId String @db.Uuid
+ role String @db.VarChar(20)
+ content String @db.Text
+ citations Json?
+ createdAt DateTime @default(now())
+ conversation AiConversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+ @@index([tenantId,conversationId,createdAt])
+ @@map("ai_messages")
+}
+
+model ForecastRun {
+ id String @id @default(uuid()) @db.Uuid
+ tenantId String @db.Uuid
+ requestedById String @db.Uuid
+ kpiCode String @db.VarChar(60)
+ horizon Int
+ model String @db.VarChar(60)
+ trainingPoints Int
+ holdoutPoints Int
+ metrics Json
+ anomalies Json
+ limitations String @db.Text
+ createdAt DateTime @default(now())
+ values ForecastValue[]
+ @@index([tenantId,kpiCode,createdAt])
+ @@map("forecast_runs")
+}
+model ForecastValue {
+ id String @id @default(uuid()) @db.Uuid
+ runId String @db.Uuid
+ forecastDate DateTime @db.Date
+ value Decimal @db.Decimal(18,4)
+ lower Decimal @db.Decimal(18,4)
+ upper Decimal @db.Decimal(18,4)
+ warning Boolean @default(false)
+ run ForecastRun @relation(fields:[runId],references:[id],onDelete:Cascade)
+ @@unique([runId,forecastDate])
+ @@map("forecast_values")
+}
+
+
+enum RecommendationStatus { PROPOSED APPROVED REJECTED IMPLEMENTED }
+enum RecommendationPriority { LOW MEDIUM HIGH }
+model AiRecommendation {
+ id String @id @default(uuid()) @db.Uuid
+ tenantId String @db.Uuid
+ kpiCode String @db.VarChar(60)
+ forecastRunId String @db.Uuid
+ createdById String @db.Uuid
+ title String @db.VarChar(200)
+ rationale String @db.Text
+ suggestedAction String @db.Text
+ priority RecommendationPriority
+ status RecommendationStatus @default(PROPOSED)
+ evidence Json
+ limitations String @db.Text
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ reviewedById String? @db.Uuid
+ reviewedAt DateTime?
+ reviewNote String? @db.VarChar(2000)
+ outcomeNote String? @db.VarChar(2000)
+ events RecommendationEvent[]
+ @@index([tenantId,status,createdAt])
+ @@index([tenantId,kpiCode])
+ @@map("ai_recommendations")
+}
+model RecommendationEvent {
+ id String @id @default(uuid()) @db.Uuid
+ recommendationId String @db.Uuid
+ tenantId String @db.Uuid
+ actorId String @db.Uuid
+ action String @db.VarChar(40)
+ fromStatus RecommendationStatus?
+ toStatus RecommendationStatus
+ note String? @db.VarChar(2000)
+ createdAt DateTime @default(now())
+ recommendation AiRecommendation @relation(fields:[recommendationId],references:[id],onDelete:Cascade)
+ @@index([tenantId,recommendationId,createdAt])
+ @@map("recommendation_events")
 }

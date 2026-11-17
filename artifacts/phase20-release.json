@@ -1,0 +1,69 @@
+{
+  "phase": 20,
+  "generated_at": "2026-11-16T09:48:40.213006+00:00",
+  "release_candidate_accepted": false,
+  "counts": {
+    "PASS": 5,
+    "FAIL": 0,
+    "SKIP": 3
+  },
+  "checks": [
+    {
+      "name": "file frontend/package.json",
+      "status": "PASS",
+      "detail": "",
+      "category": "static"
+    },
+    {
+      "name": "file backend/package.json",
+      "status": "PASS",
+      "detail": "",
+      "category": "static"
+    },
+    {
+      "name": "file backend/prisma/schema.prisma",
+      "status": "PASS",
+      "detail": "",
+      "category": "static"
+    },
+    {
+      "name": "file ai-service/pyproject.toml",
+      "status": "PASS",
+      "detail": "",
+      "category": "static"
+    },
+    {
+      "name": "file devops/compose/compose.full.yml",
+      "status": "PASS",
+      "detail": "",
+      "category": "static"
+    },
+    {
+      "name": "Docker Compose runtime",
+      "status": "SKIP",
+      "detail": "Pass --docker and configure required environment",
+      "category": "docker"
+    },
+    {
+      "name": "Next.js and NestJS build",
+      "status": "SKIP",
+      "detail": "Pass --build after installing dependencies",
+      "category": "build"
+    },
+    {
+      "name": "Authenticated business acceptance",
+      "status": "SKIP",
+      "detail": "Pass --live with two test tenant accounts",
+      "category": "business"
+    }
+  ],
+  "execution": {
+    "live": false,
+    "docker": false,
+    "build": false
+  },
+  "limitations": [
+    "Does not cover all write workflows",
+    "Independent security assessment not performed"
+  ]
+}

@@ -1,0 +1,63 @@
+name: Phase 16 build and release preflight
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s scripts/tests -p 'test_phase16_release.py' -v
+      - run: python scripts/phase16_release.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase16-static-evidence
+          path: artifacts/phase16-release.json
+  backend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: backend
+      - run: npx prisma validate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://kaizen:dummy@localhost:5432/kaizen_ai
+      - run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://kaizen:dummy@localhost:5432/kaizen_ai
+      - run: npm run build
+        working-directory: backend
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+  ai-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev]'
+        working-directory: ai-service
+      - run: python -m pytest -q
+        working-directory: ai-service

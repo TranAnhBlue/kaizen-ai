@@ -1,0 +1,53 @@
+name: Phase 12 Database Integration and Acceptance
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: kaizen_ci
+          POSTGRES_USER: kaizen
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kaizen -d kaizen_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://kaizen:ci_only_password@localhost:5432/kaizen_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: backend
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+      - name: Apply all migrations to fresh database
+        run: npx prisma migrate deploy
+        working-directory: backend
+      - name: Validate schema
+        run: npx prisma validate
+        working-directory: backend
+      - name: Build backend
+        run: npm run build
+        working-directory: backend
+  acceptance-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s scripts/tests -v

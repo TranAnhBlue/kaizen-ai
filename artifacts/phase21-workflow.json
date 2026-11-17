@@ -1,0 +1,23 @@
+{
+  "phase": 21,
+  "generated_at": "2026-11-16T16:32:49.732344+00:00",
+  "backend": "http://localhost:3001",
+  "mode": "write-enabled-disposable-test-db",
+  "counts": {
+    "PASS": 0,
+    "FAIL": 0,
+    "SKIP": 1
+  },
+  "checks": [
+    {
+      "name": "write permission",
+      "status": "SKIP",
+      "detail": "Explicit --write required; no requests sent"
+    }
+  ],
+  "limitations": [
+    "Creates persistent Kaizen test records; no automatic deletion",
+    "Does not verify KPI, forecast, RAG or independent security assessment",
+    "Requires real running Backend and PostgreSQL"
+  ]
+}
